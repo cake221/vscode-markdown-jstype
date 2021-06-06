@@ -1,6 +1,10 @@
 import * as vscode from 'vscode';
+import { parse } from '@babel/parser';
+import { TypeFun } from './typeFun';
+
 
 const pluginKeyword = 'mermaid'
+const langJson = 'language-object'
 
 export function activate(context: vscode.ExtensionContext) {
 	let disposable = vscode.commands.registerCommand('vscode-markdown-jstype.helloWorld', () => {
@@ -10,11 +14,23 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(disposable);
 
 	return {
-		extendMarkdownIt(md) {
+		extendMarkdownIt(md: any) {
 				const highlight = md.options.highlight;
-				md.options.highlight = (code, lang) => {
+				md.options.highlight = (code: string, lang: string) => {
 						if (lang && lang.match(/\bmermaid\b/i)) {
-								return `<div class="${pluginKeyword}">${preProcess(code)}</div>`;
+							return `<div class="${pluginKeyword}">${preProcess(code)}</div>`;
+						}
+						if (lang && lang.match(/\btype\b/i)) {
+							const ast = parse(code, {
+								sourceType: "module",
+								plugins: [
+									[
+										"flow", {}
+									],
+								]
+							});
+							const obj = TypeFun(ast)
+							return `<div class="${langJson}">${JSON.stringify(obj)}</div>`;
 						}
 						return highlight(code, lang);
 				};
@@ -25,7 +41,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {}
 
-const preProcess = (/** @type {string} */source) =>
+const preProcess = (source: string) =>
     source
         .replace(/\</g, '&lt;')
         .replace(/\>/g, '&gt;');
